@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS HUD</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cyan: #00d4ff;
+    --cyan-dim: #0099bb;
+    --cyan-glow: rgba(0,212,255,0.6);
+    --cyan-faint: rgba(0,212,255,0.12);
+    --cyan-mid: rgba(0,212,255,0.35);
+    --gold: #f0c030;
+    --dark: #040d14;
+    --panel-bg: rgba(0,20,35,0.82);
+    --grid: rgba(0,180,220,0.07);
+    --text: #a0e8f8;
+    --text-bright: #d0f4ff;
+    --border: rgba(0,200,240,0.3);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app {
+    position: relative;
+    width: 100vw; height: 100vh;
+    display: grid;
+    grid-template-rows: 52px 1fr 44px;
+    grid-template-columns: 48px 200px 1fr 260px 48px;
+    gap: 0;
+    z-index: 1;
+  }
+
+  #topbar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    background: rgba(0,10,20,0.7);
+    border-bottom: 1px solid var(--border);
+    gap: 6px;
+  }
+
+  .top-icon {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: bold;
+    border: 1px solid rgba(0,200,240,0.4);
+    background: rgba(0,30,50,0.8);
+    color: var(--cyan);
+    text-shadow: 0 0 6px var(--cyan);
+    flex-shrink: 0;
+  }
+  .top-icon.orange { color:#ff8c00; border-color:#ff8c00; text-shadow: 0 0 6px #ff8c00; }
+  .top-icon.purple { color:#b060ff; border-color:#b060ff; text-shadow: 0 0 6px #b060ff; }
+  .top-icon.gold   { color:var(--gold); border-color:var(--gold); text-shadow: 0 0 6px var(--gold); }
+
+  .tab-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--cyan-faint);
+    color: var(--text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { background: var(--cyan-mid); }
+  .tab-btn.active { background: rgba(0,180,220,0.25); border-color: var(--cyan); color:#fff; }
+
+  #top-controls {
+    display: flex; align-items: center; gap: 6px;
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--cyan-dim);
+  }
+  .hud-dot { width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 6px var(--cyan); }
+  .hud-dot.off { background:#1a4050; box-shadow:none; }
+
+  .mic-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: var(--cyan-faint);
+    color: var(--text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .mic-btn:hover { background: var(--cyan-mid); }
+  .mic-btn .mic-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #1a4050; transition: 0.2s;
+  }
+  .mic-btn .mic-dot.active { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.5); animation: breathe 1.2s ease infinite; }
+  .mic-btn .mic-dot.thinking { background: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.5); }
+  .mic-btn .mic-dot.muted { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  #left-rail {
+    grid-column: 1;
+    grid-row: 2 / 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 4px;
+    gap: 10px;
+    border-right: 1px solid var(--border);
+  }
+  .rail-circle {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--cyan-dim);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .rail-circle::after {
+    content:''; width:12px; height:12px;
+    border-radius:50%;
+    background: var(--cyan-dim);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .rail-dot { width:8px; height:8px; border-radius:50%; background:var(--cyan-dim); margin:2px 0; }
+  .rail-line { width:2px; flex:1; background: linear-gradient(to bottom, transparent, var(--cyan-dim), transparent); }
+  .rail-target {
+    width:36px; height:36px;
+    border: 2px solid var(--cyan-dim);
+    border-radius:50%;
+    position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .rail-target::before,.rail-target::after {
+    content:''; position:absolute;
+    background:var(--cyan-dim);
+  }
+  .rail-target::before { width:1px; height:100%; }
+  .rail-target::after  { width:100%; height:1px; }
+  .rail-inner { width:12px; height:12px; border:2px solid var(--cyan); border-radius:50%; background:transparent; z-index:1; }
+
+  #side-text {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    font-size: 8px;
+    color: rgba(0,200,240,0.25);
+    letter-spacing: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  #left-panel {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0 10px 10px;
+    gap: 6px;
+    position: relative;
+  }
+  .menu-track {
+    position: absolute;
+    left: 20px; top: 10px; bottom: 10px;
+    width: 4px;
+    background: linear-gradient(to bottom, transparent, var(--cyan-mid), transparent);
+  }
+  .menu-track-arrow {
+    position: absolute;
+    left: 14px;
+    width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--cyan);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .menu-track-arrow.up  { top: 30px; }
+  .menu-track-arrow.dn  { bottom: 30px; }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 28px;
+    padding: 7px 10px 7px 8px;
+    border: 1px solid transparent;
+    border-left: 3px solid var(--cyan-dim);
+    background: rgba(0,30,50,0.6);
+    font-size: 12px;
+    color: var(--text-bright);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .menu-item::before {
+    content: '+';
+    position: absolute;
+    left: -14px;
+    color: var(--cyan);
+    font-size: 10px;
+  }
+  .menu-item:hover, .menu-item.active {
+    background: rgba(0,180,220,0.2);
+    border-color: var(--cyan);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0,180,220,0.2);
+  }
+  .menu-icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(0,60,90,0.8);
+    border: 1px solid var(--cyan-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px;
+    flex-shrink: 0;
+    overflow:hidden;
+  }
+
+  #center {
+    grid-column: 3;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  #jarvis-ring {
+    position: relative;
+    width: 340px; height: 340px;
+    flex-shrink: 0;
+    margin-top: -30px;
+    cursor: pointer;
+  }
+  #jarvis-ring canvas { position: absolute; inset: 0; }
+  #jarvis-label {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: #fff;
+    text-shadow:
+      0 0 10px var(--cyan),
+      0 0 30px var(--cyan-glow),
+      0 0 60px rgba(0,180,220,0.4);
+    pointer-events: none;
+  }
+  #holo-bottom {
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 340px; height: 200px;
+  }
+  #holo-bottom canvas { width:100%; height:100%; }
+  #disk-pct {
+    position: absolute;
+    bottom: 205px;
+    font-size: 11px; color: var(--text-bright);
+  }
+  #disk-label {
+    position: absolute;
+    bottom: 205px;
+    font-size: 11px; color: var(--text);
+  }
+  #battery-label {
+    position: absolute;
+    bottom: 205px;
+    font-size: 11px; color: var(--text-bright);
+  }
+
+  #right-panel {
+    grid-column: 4;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 10px 10px 5px;
+  }
+  #clock-box {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 4px 0;
+  }
+  #clock-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--cyan);
+    text-shadow: 0 0 16px var(--cyan-glow), 0 0 40px rgba(0,200,240,0.3);
+    line-height: 1;
+    letter-spacing: 2px;
+  }
+  #clock-ampm {
+    font-size: 13px; color: var(--cyan-dim);
+    margin-bottom: 8px;
+    font-family: 'Orbitron', monospace;
+  }
+  #clock-tz {
+    font-size: 8px; color: rgba(0,180,220,0.5);
+    text-align: right;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+  #clock-secs {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    color: var(--cyan-dim);
+    margin-bottom: 8px;
+  }
+  #network-box {
+    border: 1px solid var(--border);
+    background: var(--panel-bg);
+    padding: 8px 12px;
+  }
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--text-bright);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+  }
+  .net-row {
+    display: flex; justify-content: space-between;
+    font-size: 11px;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(0,180,220,0.08);
+  }
+  .net-key { color: var(--text); }
+  .net-val { color: var(--text-bright); }
+
+  #notes-box {
+    flex: 1;
+    border: 2px solid var(--cyan);
+    background: rgba(0,10,25,0.9);
+    padding: 8px 10px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 16px rgba(0,180,220,0.15), inset 0 0 20px rgba(0,20,40,0.5);
+    display: flex; flex-direction: column;
+  }
+  #notes-box::before {
+    content:'';
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 14px,
+      rgba(0,180,220,0.04) 14px,
+      rgba(0,180,220,0.04) 15px
+    );
+    pointer-events:none;
+    z-index:1;
+  }
+  .notes-title {
+    font-family:'Orbitron', monospace;
+    font-size:11px;
+    color:var(--cyan);
+    letter-spacing:3px;
+    margin-bottom:6px;
+    text-shadow:0 0 8px var(--cyan-glow);
+    flex-shrink:0;
+    position:relative; z-index:2;
+  }
+  #notes-content {
+    flex:1;
+    overflow-y:auto;
+    position:relative; z-index:2;
+    scrollbar-width:thin; scrollbar-color:rgba(0,180,220,0.2) transparent;
+  }
+  #notes-content::-webkit-scrollbar { width:3px; }
+  #notes-content::-webkit-scrollbar-thumb { background:rgba(0,180,220,0.2); border-radius:10px; }
+  .notes-line {
+    font-size:10px; line-height:1.5; color:#80d8f0; white-space:pre-wrap;
+    padding:1px 0; border-bottom:1px solid rgba(0,180,220,0.04);
+  }
+  .notes-line b { color:var(--text-bright); }
+  .notes-line .lu { color:#60aaff; }
+  .notes-line .lj { color:#a78bfa; }
+  .notes-line .le { color:#ef4444; }
+
+  .notes-input-row {
+    display:flex; gap:4px; margin-top:4px;
+    position:relative; z-index:2; flex-shrink:0;
+  }
+  .notes-input-row input {
+    flex:1;
+    background:rgba(0,20,35,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--text-bright);
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px;
+    padding:4px 6px;
+    outline:none;
+  }
+  .notes-input-row input:focus { border-color:var(--cyan); }
+  .notes-input-row button {
+    background:rgba(0,30,50,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    padding:4px 8px;
+    cursor:pointer;
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px;
+    transition:0.15s;
+  }
+  .notes-input-row button:hover { background:var(--cyan-mid); color:#fff; }
+  .notes-bottom-dots {
+    position:absolute; bottom:30px; left:8px; right:14px;
+    height:1px;
+    background: repeating-linear-gradient(
+      90deg, var(--cyan-dim) 0, var(--cyan-dim) 4px, transparent 4px, transparent 8px
+    );
+    z-index:1;
+  }
+  .notes-circle {
+    position:absolute; bottom:5px; left:8px;
+    width:22px; height:22px;
+    border-radius:50%;
+    border:2px solid var(--cyan);
+    display:flex; align-items:center; justify-content:center;
+    font-size:8px; color:var(--cyan);
+    z-index:2; cursor:pointer;
+  }
+
+  #right-rail {
+    grid-column: 5;
+    grid-row: 2 / 4;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:10px 4px;
+    gap:10px;
+    border-left:1px solid var(--border);
+  }
+  .bar-group {
+    display:flex;
+    gap:2px;
+    align-items:flex-end;
+    height:80px;
+  }
+  .bar-seg {
+    width:6px;
+    background: var(--cyan-mid);
+    border:1px solid var(--cyan-dim);
+    transition: height 0.5s ease;
+  }
+
+  #bottombar {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display:flex;
+    align-items:center;
+    padding: 0 14px;
+    border-top:1px solid var(--border);
+    background:rgba(0,10,20,0.7);
+    font-size:11px;
+    color: var(--text);
+    gap:8px;
+  }
+  #bottombar::before {
+    content:'◇';
+    color:var(--cyan-dim);
+    font-size:8px;
+  }
+  #bottombar .status-msg {
+    flex:1;
+  }
+
+  #capture-label {
+    position:fixed;
+    top:10px; left:10px;
+    font-size:9px; color:rgba(0,200,240,0.4);
+    z-index:10;
+  }
+
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.06) 2px,
+      rgba(0,0,0,0.06) 4px
+    );
+    pointer-events:none;
+    z-index:999;
+  }
+
+  .overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7);
+    backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:100;
+  }
+  .overlay.active { display:flex; }
+  .map-modal {
+    width:min(900px,90vw); height:min(600px,80vh);
+    border:2px solid var(--cyan);
+    background:var(--dark);
+    border-radius:12px; overflow:hidden;
+    box-shadow:0 0 40px rgba(0,180,220,0.2);
+  }
+  .map-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 16px;
+    border-bottom:1px solid var(--border);
+    color:var(--text-bright);
+    font-family:'Orbitron',monospace;
+    font-size:12px; letter-spacing:2px;
+  }
+  .map-hdr button {
+    background:rgba(0,30,50,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    padding:4px 12px;
+    cursor:pointer;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px;
+  }
+  .map-hdr button:hover { background:var(--cyan-mid); }
+  .map-modal iframe { width:100%; height:calc(100% - 44px); border:0; }
+
+  /* ─── SHARED MODAL ─── */
+  .modal-window {
+    width:min(860px,92vw); height:min(620px,85vh);
+    border:2px solid var(--cyan);
+    background:var(--dark);
+    border-radius:8px; overflow:hidden;
+    box-shadow:0 0 50px rgba(0,180,220,0.25), inset 0 0 60px rgba(0,20,30,0.5);
+    display:flex; flex-direction:column;
+  }
+  .modal-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 16px;
+    border-bottom:1px solid var(--border);
+    background:rgba(0,15,30,0.8);
+    flex-shrink:0;
+  }
+  .modal-title {
+    font-family:'Orbitron',monospace;
+    font-size:13px; letter-spacing:3px;
+    color:var(--cyan); text-shadow:0 0 10px var(--cyan-glow);
+  }
+  .modal-close {
+    background:rgba(200,40,40,0.15);
+    border:1px solid rgba(255,80,80,0.3);
+    color:#ff6666;
+    padding:3px 12px;
+    cursor:pointer;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px;
+    transition:0.15s;
+  }
+  .modal-close:hover { background:rgba(200,40,40,0.35); color:#fff; }
+  .modal-body {
+    flex:1; overflow-y:auto; padding:14px 18px;
+    position:relative;
+    scrollbar-width:thin; scrollbar-color:rgba(0,180,220,0.15) transparent;
+  }
+  .modal-body::-webkit-scrollbar { width:4px; }
+  .modal-body::-webkit-scrollbar-thumb { background:rgba(0,180,220,0.2); border-radius:10px; }
+
+  /* System Monitor */
+  .stat-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:4px;
+  }
+  .stat-card {
+    border:1px solid rgba(0,180,220,0.2);
+    background:rgba(0,15,30,0.6);
+    padding:12px 14px;
+    border-radius:4px;
+  }
+  .stat-label {
+    font-family:'Orbitron',monospace;
+    font-size:10px; letter-spacing:2px;
+    color:var(--cyan-dim);
+    margin-bottom:6px;
+  }
+  .stat-value {
+    font-size:22px;
+    color:var(--text-bright);
+    text-shadow:0 0 8px rgba(0,200,240,0.2);
+  }
+  .stat-value .unit { font-size:12px; color:var(--cyan-dim); }
+  .stat-bar {
+    width:100%; height:6px;
+    background:rgba(0,30,50,0.8);
+    border:1px solid rgba(0,180,220,0.15);
+    margin-top:6px; border-radius:2px;
+    overflow:hidden;
+  }
+  .stat-bar-fill {
+    height:100%;
+    background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+    transition: width 0.6s ease;
+    border-radius:2px;
+  }
+  .proc-list {
+    font-size:11px; line-height:1.6;
+    color:var(--text);
+    font-family:'Share Tech Mono',monospace;
+  }
+  .proc-list .proc-name { color:var(--text-bright); }
+  .proc-list .proc-cpu { color:var(--cyan-dim); margin-left:6px; }
+
+  /* Full Chat Overlay */
+  .full-chat-area {
+    display:flex; flex-direction:column;
+    height:100%; gap:10px;
+  }
+  .full-chat-log {
+    flex:1; overflow-y:auto; padding:4px 0;
+    scrollbar-width:thin; scrollbar-color:rgba(0,180,220,0.15) transparent;
+  }
+  .full-chat-log::-webkit-scrollbar { width:4px; }
+  .full-chat-log::-webkit-scrollbar-thumb { background:rgba(0,180,220,0.2); border-radius:10px; }
+  .full-chat-msg {
+    padding:6px 10px; margin-bottom:4px;
+    border-left:3px solid var(--cyan-dim);
+    background:rgba(0,20,40,0.4);
+    font-size:12px; line-height:1.5;
+    color:var(--text);
+  }
+  .full-chat-msg .msg-tag {
+    font-family:'Orbitron',monospace;
+    font-size:9px; letter-spacing:1px;
+    color:var(--cyan-dim); margin-right:8px;
+  }
+  .full-chat-msg.you { border-left-color:#60aaff; }
+  .full-chat-msg.jarvis { border-left-color:#a78bfa; }
+  .full-chat-msg.system { border-left-color:var(--cyan-dim); }
+  .full-chat-input-row {
+    display:flex; gap:6px; flex-shrink:0;
+  }
+  .full-chat-input-row input {
+    flex:1;
+    background:rgba(0,15,30,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--text-bright);
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px; padding:8px 10px;
+    outline:none;
+  }
+  .full-chat-input-row input:focus { border-color:var(--cyan); }
+  .full-chat-input-row button {
+    background:rgba(0,30,50,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    padding:8px 16px;
+    cursor:pointer;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:1px;
+    transition:0.15s;
+  }
+  .full-chat-input-row button:hover { background:var(--cyan-mid); color:#fff; }
+
+  /* Terminal */
+  .term-area { display:flex; flex-direction:column; height:100%; }
+  .term-output {
+    flex:1; overflow-y:auto; padding:4px 0;
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px; line-height:1.6;
+    color:var(--text);
+    scrollbar-width:thin; scrollbar-color:rgba(0,180,220,0.15) transparent;
+  }
+  .term-output::-webkit-scrollbar { width:4px; }
+  .term-output::-webkit-scrollbar-thumb { background:rgba(0,180,220,0.2); border-radius:10px; }
+  .term-line { padding:1px 0; white-space:pre-wrap; }
+  .term-line .prompt { color:var(--cyan-dim); }
+  .term-line .input-text { color:#44ff88; }
+  .term-line .response-text { color:var(--text-bright); }
+  .term-input-row {
+    display:flex; gap:6px; flex-shrink:0;
+    border-top:1px solid var(--border);
+    padding-top:8px;
+  }
+  .term-input-row input {
+    flex:1;
+    background:rgba(0,10,20,0.9);
+    border:1px solid var(--cyan-dim);
+    color:#44ff88;
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px; padding:8px 10px;
+    outline:none;
+  }
+  .term-input-row input:focus { border-color:var(--cyan); }
+  .term-input-row button {
+    background:rgba(0,30,50,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    padding:8px 14px;
+    cursor:pointer;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px;
+    transition:0.15s;
+  }
+  .term-input-row button:hover { background:var(--cyan-mid); color:#fff; }
+
+  /* Map input overlay variant */
+  .map-input-area {
+    display:flex; flex-direction:column; gap:10px;
+    height:100%;
+  }
+  .map-input-row {
+    display:flex; gap:6px; flex-shrink:0;
+  }
+  .map-input-row input {
+    flex:1;
+    background:rgba(0,15,30,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--text-bright);
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px; padding:8px 10px;
+    outline:none;
+  }
+  .map-input-row input:focus { border-color:var(--cyan); }
+  .map-input-row button {
+    background:rgba(0,30,50,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--cyan);
+    padding:8px 16px;
+    cursor:pointer;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px;
+    transition:0.15s;
+  }
+  .map-input-row button:hover { background:var(--cyan-mid); color:#fff; }
+  .map-frame-wrap { flex:1; border:1px solid var(--border); }
+  .map-frame-wrap iframe { width:100%; height:100%; border:0; }
+</style>
+</head>
+<body>
+
+<div id="capture-label">Capture_Th...</div>
+<div id="side-text">BRUCE &nbsp; CONTOS &nbsp; CONSTRUCT</div>
+
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="top-icon" style="background:rgba(40,0,0,0.7);border-color:#ff4400;color:#ff6600;">▶</div>
+    <div style="width:1px;height:24px;background:var(--border);margin:0 4px;"></div>
+
+    <div style="display:flex;align-items:center;gap:4px;margin-right:4px;">
+      <div class="hud-dot" id="dot1"></div>
+      <div class="hud-dot off" id="dot2"></div>
+    </div>
+
+    <div class="tab-btn active" data-overlay="system">
+      <div class="top-icon" style="width:16px;height:16px;font-size:7px;">💻</div> SYSTEM
+    </div>
+    <div class="tab-btn" data-overlay="chat">
+      <div class="top-icon" style="width:16px;height:16px;font-size:7px;color:#a78bfa;border-color:#a78bfa;">💬</div> CHAT
+    </div>
+    <div class="tab-btn" data-overlay="map">
+      <div class="top-icon gold" style="width:16px;height:16px;font-size:7px;">🌍</div> MAP
+    </div>
+    <div class="tab-btn" data-overlay="terminal">
+      <div class="top-icon" style="width:16px;height:16px;font-size:7px;color:#44ff88;border-color:#44ff88;">⬛</div> TERMINAL
+    </div>
+
+    <div id="top-controls">
+      <div class="mic-btn" id="mic-toggle">
+        <span class="mic-dot" id="top-mic-dot"></span>
+        <span id="top-mic-label">MIC OFF</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEFT RAIL -->
+  <div id="left-rail">
+    <div class="rail-target"><div class="rail-inner"></div></div>
+    <div class="rail-line"></div>
+    <div class="rail-circle"></div>
+    <div class="rail-dot"></div>
+    <div class="rail-dot"></div>
+    <div class="rail-line"></div>
+  </div>
+
+  <!-- LEFT MENU PANEL -->
+  <div id="left-panel">
+    <div class="menu-track"></div>
+    <div class="menu-track-arrow up">▲</div>
+
+    <div class="menu-item active" data-overlay="system">
+      <div class="menu-icon">💻</div> SYSTEM
+    </div>
+    <div class="menu-item" data-overlay="chat">
+      <div class="menu-icon" style="color:#a78bfa;border-color:#a78bfa;">💬</div> CHAT
+    </div>
+    <div class="menu-item" data-overlay="map">
+      <div class="menu-icon gold" style="color:var(--gold);border-color:var(--gold);">🌍</div> MAP
+    </div>
+    <div class="menu-item" data-overlay="terminal">
+      <div class="menu-icon" style="color:#44ff88;border-color:#44ff88;">⬛</div> TERMINAL
+    </div>
+
+    <div class="menu-track-arrow dn">▼</div>
+  </div>
+
+  <!-- CENTER -->
+  <div id="center">
+    <div id="jarvis-ring">
+      <canvas id="ringCanvas" width="340" height="340"></canvas>
+    </div>
+    <div id="jarvis-label">JARVIS</div>
+
+    <div id="disk-pct" style="left:calc(50% - 100px);">0%</div>
+    <div id="disk-label" style="left:calc(50% - 70px);">CPU</div>
+    <div id="battery-label" style="left:calc(50% + 20px);">0% RAM</div>
+    <div id="holo-bottom">
+      <canvas id="holoCanvas" width="340" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div id="clock-box">
+      <div>
+        <div id="clock-time">12 44</div>
+        <div id="clock-tz">SYSTEM LOCAL</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;margin-left:4px;">
+        <div id="clock-secs">12</div>
+        <div id="clock-ampm">PM</div>
+      </div>
+    </div>
+
+    <div id="network-box">
+      <div class="panel-title">NETWORK</div>
+      <div class="net-row"><span class="net-key">Voice</span><span class="net-val" id="voice-net-status">Standby</span></div>
+      <div class="net-row"><span class="net-key">CPU</span><span class="net-val" id="net-cpu">0%</span></div>
+      <div class="net-row"><span class="net-key">RAM</span><span class="net-val" id="net-ram">0%</span></div>
+    </div>
+
+    <div id="notes-box">
+      <div class="notes-title">▼ JARVIS</div>
+      <div id="notes-content">
+        <div class="notes-line"><b>System</b> Initialized. Click mic or type below.</div>
+      </div>
+      <div class="notes-bottom-dots"></div>
+      <div class="notes-input-row">
+        <input type="text" id="chat-input" placeholder="type command..." autocomplete="off">
+        <button id="send-btn">↵</button>
+      </div>
+      <div class="notes-circle" id="speak-btn">◉</div>
+    </div>
+  </div>
+
+  <!-- RIGHT RAIL -->
+  <div id="right-rail">
+    <div class="bar-group" id="bars"></div>
+    <div class="rail-line"></div>
+    <div class="rail-dot"></div>
+    <div class="rail-dot"></div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottombar">
+    <span class="status-msg" id="status-bar">Only two things are infinite, the universe and human stupidity — Einstein</span>
+  </div>
+
+</div>
+
+<!-- MAP OVERLAY (auto-triggered by [LOCATION] in chat) -->
+<div class="overlay" id="map-overlay">
+  <div class="map-modal">
+    <div class="map-hdr"><span>📍 LOCATION</span><button id="close-map">CLOSE</button></div>
+    <iframe id="map-frame" loading="lazy"></iframe>
+  </div>
+</div>
+
+<!-- SHARED MODAL OVERLAY (for SYSTEM / CHAT / MAP / TERMINAL) -->
+<div class="overlay" id="shared-overlay">
+  <div class="modal-window">
+    <div class="modal-hdr">
+      <span class="modal-title" id="shared-title">SYSTEM</span>
+      <button class="modal-close" id="shared-close">✕ CLOSE</button>
+    </div>
+    <div class="modal-body" id="shared-body">
+      <!-- Dynamic content injected here -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CLOCK ───
+function updateClock() {
+  const now = new Date();
+  let h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  document.getElementById('clock-time').textContent =
+    String(h).padStart(2,' ') + ' ' + String(m).padStart(2,'0');
+  document.getElementById('clock-secs').textContent = String(s).padStart(2,'0');
+  document.getElementById('clock-ampm').textContent = ampm;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ─── JARVIS RING CANVAS ───
+(function drawRing() {
+  const canvas = document.getElementById('ringCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2;
+  let rot = 0, rot2 = 0;
+  const allBars = [];
+
+  function ring(r, lineW, color, dashArr, alpha=1) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineW;
+    if(dashArr) ctx.setLineDash(dashArr);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function arcGlow(r, startA, endA, color, w, blur=20) {
+    ctx.save();
+    ctx.shadowBlur = blur;
+    ctx.shadowColor = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, startA, endA);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function tickMarks(r, count, len, color, lw) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    for(let i=0;i<count;i++) {
+      const a = (i/count)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a)*r, cy + Math.sin(a)*r);
+      ctx.lineTo(cx + Math.cos(a)*(r-len), cy + Math.sin(a)*(r-len));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    ring(158, 1, 'rgba(0,180,220,0.15)', null);
+    tickMarks(158, 80, 6, 'rgba(0,200,240,0.3)', 1);
+    tickMarks(158, 20, 12, 'rgba(0,200,240,0.5)', 1.5);
+    ring(152, 2, 'rgba(0,200,240,0.4)', null);
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rot);
+    ctx.translate(-cx,-cy);
+    ring(140, 3, 'rgba(0,200,240,0.5)', [8,6]);
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(rot2);
+    ctx.translate(-cx,-cy);
+    arcGlow(132, -0.3, 0.8, '#f0c030', 4, 10);
+    arcGlow(132, Math.PI+0.2, Math.PI+1.2, '#f0c030', 4, 10);
+    ctx.restore();
+
+    ring(120, 1.5, 'rgba(0,180,220,0.35)', null);
+    tickMarks(120, 60, 5, 'rgba(0,200,240,0.3)', 1);
+    tickMarks(120, 12, 10, 'rgba(0,200,240,0.6)', 1.5);
+    arcGlow(110, -Math.PI*0.4 + rot, Math.PI*0.6 + rot, 'rgba(0,210,255,0.9)', 3, 18);
+    arcGlow(110, Math.PI*0.9 + rot, Math.PI*1.8 + rot, 'rgba(0,210,255,0.6)', 2, 12);
+    ring(95,  2, 'rgba(0,200,240,0.5)', null);
+    ring(85,  1, 'rgba(0,180,220,0.3)', null);
+    ring(70,  3, 'rgba(0,200,240,0.6)', null);
+    ring(55,  1, 'rgba(0,180,220,0.2)', null);
+
+    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,60);
+    grad.addColorStop(0, 'rgba(0,180,220,0.12)');
+    grad.addColorStop(1, 'rgba(0,180,220,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx,cy,60,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.shadowBlur=30;
+    ctx.shadowColor='rgba(0,200,240,0.5)';
+    ring(152,2,'rgba(0,200,240,0.7)',null);
+    ctx.restore();
+
+    rot  += 0.004;
+    rot2 -= 0.007;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ─── HOLOGRAPHIC 3D CYLINDERS ───
+(function drawHolo() {
+  const canvas = document.getElementById('holoCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let t = 0;
+
+  function drawCylinder(x, h, r, bright) {
+    const y = H - 10;
+    const alpha = bright ? 0.8 : 0.4;
+    const strokeC = bright ? `rgba(0,220,255,${alpha})` : `rgba(0,160,200,${alpha})`;
+    const fillC   = bright ? `rgba(0,180,230,0.08)` : `rgba(0,120,180,0.05)`;
+
+    ctx.save();
+    ctx.strokeStyle = strokeC;
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = fillC;
+    ctx.beginPath();
+    ctx.ellipse(x, y-h, r, r*0.35, 0, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = strokeC;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x-r, y-h); ctx.lineTo(x-r, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+r, y-h); ctx.lineTo(x+r, y); ctx.stroke();
+    ctx.restore();
+
+    for(let i=1; i<=4; i++) {
+      const ry = y - (h * i/5);
+      ctx.save();
+      ctx.strokeStyle = strokeC;
+      ctx.lineWidth = 0.7;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(x, ry, r, r*0.35, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.strokeStyle = strokeC;
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = fillC;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r*0.35, 0, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    if(bright) {
+      ctx.save();
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'rgba(0,200,255,0.5)';
+      ctx.strokeStyle = 'rgba(0,220,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y-h, r, r*0.35, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,180,220,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(175, H-10, 150, 25, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(175, H-10, 100, 17, 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+
+    const cyls = [
+      { x: 80,  baseH: 110, r: 28, bright: true  },
+      { x: 130, baseH: 75,  r: 22, bright: false },
+      { x: 175, baseH: 130, r: 30, bright: true  },
+      { x: 225, baseH: 80,  r: 24, bright: false },
+      { x: 268, baseH: 95,  r: 26, bright: false },
+    ];
+
+    cyls.forEach((c,i) => {
+      const pulse = Math.sin(t * 1.2 + i) * 5;
+      drawCylinder(c.x, c.baseH + pulse, c.r, c.bright);
+    });
+
+    ctx.save();
+    const pulse = Math.sin(t*1.5)*4;
+    const cx2 = 175, h2 = 140 + pulse, r2 = 18, y2 = H-10;
+    ctx.strokeStyle = 'rgba(0,220,255,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(0,220,255,0.7)';
+    ctx.beginPath(); ctx.ellipse(cx2, y2-h2, r2, r2*0.35, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx2-r2, y2-h2); ctx.lineTo(cx2-r2, y2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx2+r2, y2-h2); ctx.lineTo(cx2+r2, y2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx2, y2-h2-14);
+    ctx.lineTo(cx2-6, y2-h2-6);
+    ctx.moveTo(cx2, y2-h2-14);
+    ctx.lineTo(cx2+6, y2-h2-6);
+    ctx.stroke();
+    ctx.restore();
+
+    t += 0.025;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ════════════════════════════════════════════════
+// ─── OVERLAY SYSTEM ───
+// ════════════════════════════════════════════════
+const sharedOverlay = document.getElementById('shared-overlay');
+const sharedTitle = document.getElementById('shared-title');
+const sharedBody = document.getElementById('shared-body');
+const sharedClose = document.getElementById('shared-close');
+
+const openOverlay = (title, html) => {
+  sharedTitle.textContent = title;
+  sharedBody.innerHTML = html;
+  sharedOverlay.classList.add('active');
+};
+const closeOverlay = () => {
+  sharedOverlay.classList.remove('active');
+  sharedBody.innerHTML = '';
+};
+sharedClose.addEventListener('click', closeOverlay);
+sharedOverlay.addEventListener('click', (e) => { if (e.target === sharedOverlay) closeOverlay(); });
+
+// System Monitor
+const showSystem = async () => {
+  let html = '<div class="stat-grid">';
+  try {
+    const res = await fetch('/system_stats');
+    const d = await res.json();
+    const cpu = Math.round(d.cpu), ram = Math.round(d.ram);
+    html += `
+      <div class="stat-card"><div class="stat-label">CPU</div>
+        <div class="stat-value">${cpu}<span class="unit">%</span></div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${cpu}%"></div></div></div>
+      <div class="stat-card"><div class="stat-label">RAM</div>
+        <div class="stat-value">${ram}<span class="unit">%</span></div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${ram}%"></div></div></div>
+    `;
+  } catch(e) {
+    html += '<div class="stat-card" style="grid-column:1/-1;color:var(--cyan-dim);">Unable to fetch stats.</div>';
+  }
+  html += '</div>';
+  html += `<div class="stat-card" style="margin-top:8px;">
+    <div class="stat-label">SYSTEM</div>
+    <div class="proc-list">
+      <div><span class="proc-name">● Platform</span> <span class="proc-cpu">Windows</span></div>
+      <div><span class="proc-name">● Holographic UI</span> <span class="proc-cpu">v2.0</span></div>
+      <div><span class="proc-name">● AI Engine</span> <span class="proc-cpu">DeepSeek</span></div>
+      <div><span class="proc-name">● Voice</span> <span class="proc-cpu">ElevenLabs British</span></div>
+    </div>
+  </div>`;
+  openOverlay('◈ SYSTEM MONITOR', html);
+};
+
+// Full Chat
+const showFullChat = () => {
+  const html = `
+    <div class="full-chat-area">
+      <div class="full-chat-log" id="full-chat-log"></div>
+      <div class="full-chat-input-row">
+        <input type="text" id="full-chat-input" placeholder="type message..." autocomplete="off">
+        <button id="full-chat-send">SEND</button>
+      </div>
+    </div>`;
+  openOverlay('◈ FULL CHAT', html);
+  const log = document.getElementById('full-chat-log');
+  const inp = document.getElementById('full-chat-input');
+  const btn = document.getElementById('full-chat-send');
+  // Copy existing notes into full chat
+  document.querySelectorAll('#notes-content .notes-line').forEach(el => {
+    const d = document.createElement('div');
+    d.className = 'full-chat-msg ' + (el.innerHTML.includes('JARVIS') ? 'jarvis' : el.innerHTML.includes('You') ? 'you' : 'system');
+    d.innerHTML = el.innerHTML;
+    log.appendChild(d);
+  });
+  log.scrollTop = log.scrollHeight;
+  const sendFullChat = () => {
+    const text = inp.value.trim();
+    if (!text) return;
+    inp.value = '';
+    const d = document.createElement('div');
+    d.className = 'full-chat-msg you';
+    d.innerHTML = `<span class="msg-tag">YOU</span>${text}`;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    addNote('You', text, 'lu');
+    setMicUI('thinking');
+    sendCommand(text).then(() => {
+      // Re-sync notes to full chat
+      const lines = document.querySelectorAll('#notes-content .notes-line');
+      const lastJ = lines[lines.length - 1];
+      if (lastJ && lastJ.innerHTML.includes('JARVIS')) {
+        const d2 = document.createElement('div');
+        d2.className = 'full-chat-msg jarvis';
+        d2.innerHTML = lastJ.innerHTML;
+        log.appendChild(d2);
+        log.scrollTop = log.scrollHeight;
+      }
+    });
+  };
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendFullChat(); });
+  btn.addEventListener('click', sendFullChat);
+  setTimeout(() => inp.focus(), 100);
+};
+
+// Map
+const showMapModal = () => {
+  const html = `
+    <div class="map-input-area">
+      <div class="map-input-row">
+        <input type="text" id="map-input" placeholder="Search location..." autocomplete="off">
+        <button id="map-go">SEARCH</button>
+      </div>
+      <div class="map-frame-wrap"><iframe id="map-frame-modal" loading="lazy"></iframe></div>
+    </div>`;
+  openOverlay('◈ MAP', html);
+  const mInp = document.getElementById('map-input');
+  const mBtn = document.getElementById('map-go');
+  const mFrame = document.getElementById('map-frame-modal');
+  const goMap = () => {
+    const q = mInp.value.trim();
+    if (q) mFrame.src = 'https://www.google.com/maps?q=' + encodeURIComponent(q) + '&output=embed';
+  };
+  mBtn.addEventListener('click', goMap);
+  mInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') goMap(); });
+  setTimeout(() => mInp.focus(), 100);
+};
+
+// Terminal
+const showTerminal = () => {
+  const html = `
+    <div class="term-area">
+      <div class="term-output" id="term-output">
+        <div class="term-line"><span class="prompt">JARVIS@HUD:~$</span> <span class="response-text">Terminal ready. Type a command.</span></div>
+      </div>
+      <div class="term-input-row">
+        <input type="text" id="term-input" placeholder="type command..." autocomplete="off">
+        <button id="term-send">EXEC</button>
+      </div>
+    </div>`;
+  openOverlay('◈ TERMINAL', html);
+  const tOut = document.getElementById('term-output');
+  const tInp = document.getElementById('term-input');
+  const tBtn = document.getElementById('term-send');
+  const execCmd = async () => {
+    const cmd = tInp.value.trim();
+    if (!cmd) return;
+    tInp.value = '';
+    tOut.innerHTML += `<div class="term-line"><span class="prompt">JARVIS@HUD:~$</span> <span class="input-text">${cmd}</span></div>`;
+    tOut.scrollTop = tOut.scrollHeight;
+    setMicUI('thinking');
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: cmd })
+      });
+      const data = await res.json();
+      tOut.innerHTML += `<div class="term-line"><span class="prompt">→</span> <span class="response-text">${data.text}</span></div>`;
+      tOut.scrollTop = tOut.scrollHeight;
+      addNote('You', cmd, 'lu');
+      addNote('JARVIS', data.text, 'lj');
+      if (data.location) openMap(data.location);
+      await speakText(data.text);
+    } catch(e) {
+      tOut.innerHTML += `<div class="term-line" style="color:#ef4444;">Error: ${e.message}</div>`;
+    }
+  };
+  tBtn.addEventListener('click', execCmd);
+  tInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') execCmd(); });
+  setTimeout(() => tInp.focus(), 100);
+};
+
+// ─── MENU / TAB BUTTONS → OPEN OVERLAYS ───
+const overlayMap = { system: showSystem, chat: showFullChat, map: showMapModal, terminal: showTerminal };
+document.querySelectorAll('.menu-item, .tab-btn').forEach(el => {
+  el.addEventListener('click', () => {
+    const target = el.dataset.overlay;
+    if (target && overlayMap[target]) {
+      document.querySelectorAll('.menu-item, .tab-btn').forEach(x => x.classList.remove('active'));
+      el.classList.add('active');
+      overlayMap[target]();
+    }
+  });
+});
+
+// ════════════════════════════════════════════════
+// ─── JARVIS INTEGRATION ───
+// ════════════════════════════════════════════════
+
+// DOM refs
+const notesContent = document.getElementById('notes-content');
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+const speakBtn = document.getElementById('speak-btn');
+const topMicDot = document.getElementById('top-mic-dot');
+const topMicLabel = document.getElementById('top-mic-label');
+const micToggle = document.getElementById('mic-toggle');
+const voiceNetStatus = document.getElementById('voice-net-status');
+const netCpu = document.getElementById('net-cpu');
+const netRam = document.getElementById('net-ram');
+const diskPct = document.getElementById('disk-pct');
+const batteryLabel = document.getElementById('battery-label');
+const statusBar = document.getElementById('status-bar');
+const barsEl = document.getElementById('bars');
+const mapOverlay = document.getElementById('map-overlay');
+const mapFrame = document.getElementById('map-frame');
+const closeMap = document.getElementById('close-map');
+
+// State
+let isProcessing = false;
+let isMuted = true;
+let recognition = null;
+let micRetries = 0;
+let micTimer = null;
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// Add note line
+const addNote = (prefix, text, cls = '') => {
+  const d = document.createElement('div');
+  d.className = 'notes-line';
+  d.innerHTML = cls ? `<b class="${cls}">${prefix}</b> ${text}` : `<b>${prefix}</b> ${text}`;
+  notesContent.appendChild(d);
+  notesContent.scrollTop = notesContent.scrollHeight;
+};
+
+const setMicUI = (state) => {
+  topMicDot.className = 'mic-dot';
+  if (state === 'listening') {
+    topMicDot.classList.add('active');
+    topMicLabel.textContent = 'LISTENING';
+    voiceNetStatus.textContent = 'Listening';
+    statusBar.textContent = 'Listening...';
+  } else if (state === 'thinking') {
+    topMicDot.classList.add('thinking');
+    topMicLabel.textContent = 'THINKING';
+    voiceNetStatus.textContent = 'Processing';
+    statusBar.textContent = 'Thinking...';
+  } else if (state === 'muted') {
+    topMicDot.classList.add('muted');
+    topMicLabel.textContent = 'MIC OFF';
+    voiceNetStatus.textContent = 'Muted';
+    statusBar.textContent = 'Mic off. Click mic to speak.';
+  } else {
+    topMicLabel.textContent = 'MIC OFF';
+    voiceNetStatus.textContent = 'Standby';
+    statusBar.textContent = 'Click mic or type a command.';
+  }
+};
+
+const clearMicTimer = () => { if (micTimer) { clearTimeout(micTimer); micTimer = null; } };
+const scheduleMic = (delay) => { clearMicTimer(); micTimer = setTimeout(tryStartMic, delay); };
+
+const createRecognition = () => {
+  if (!Speech) { addNote('System', 'Speech recognition not supported.', 'le'); return null; }
+  const rec = new Speech();
+  rec.lang = 'en-GB'; rec.interimResults = false; rec.maxAlternatives = 1;
+  rec.onstart = () => { micRetries = 0; setMicUI('listening'); };
+  rec.onresult = async (event) => {
+    isProcessing = true;
+    const t = event.results[0][0].transcript.trim();
+    if (!t) { isProcessing = false; return; }
+    addNote('You', t, 'lu');
+    setMicUI('thinking');
+    await sendCommand(t);
+    isProcessing = false;
+  };
+  rec.onerror = (e) => {
+    if (e.error === 'not-allowed') { addNote('System', 'Mic denied.', 'le'); setMicUI('muted'); isMuted = true; return; }
+    recognition = null;
+    if (!isMuted && !isProcessing) scheduleMic(500);
+  };
+  rec.onend = () => {
+    recognition = null;
+    if (!isMuted && !isProcessing) scheduleMic(500);
+  };
+  return rec;
+};
+
+const tryStartMic = () => {
+  clearMicTimer();
+  if (isMuted || isProcessing) return;
+  micRetries++;
+  if (micRetries > 10) { setMicUI('muted'); isMuted = true; addNote('System', 'Mic unavailable, click to retry.', 'le'); return; }
+  const rec = createRecognition();
+  if (!rec) return;
+  try { rec.start(); recognition = rec; } catch(e) { recognition = null; scheduleMic(1200); }
+};
+
+const toggleMic = () => {
+  if (isMuted) {
+    isMuted = false; micRetries = 0;
+    setMicUI('standby');
+    addNote('System', 'Mic activated.');
+    scheduleMic(200);
+  } else {
+    isMuted = true; clearMicTimer();
+    if (recognition) { try { recognition.abort(); } catch(e) {} recognition = null; }
+    setMicUI('muted');
+    addNote('System', 'Mic muted.');
+  }
+};
+
+// Chat
+const sendCommand = async (message) => {
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    addNote('JARVIS', data.text, 'lj');
+    if (data.location) openMap(data.location);
+    await speakText(data.text);
+  } catch (err) {
+    addNote('Error', err.message, 'le');
+    if (!isMuted) scheduleMic(600);
+  }
+};
+
+const handleSend = () => {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  chatInput.value = '';
+  addNote('You', text, 'lu');
+  setMicUI('thinking');
+  sendCommand(text);
+};
+
+chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleSend(); });
+sendBtn.addEventListener('click', handleSend);
+
+// TTS
+const speakText = async (text) => {
+  let objectUrl = null;
+  try {
+    const res = await fetch('/tts?text=' + encodeURIComponent(text));
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    objectUrl = URL.createObjectURL(blob);
+    const audio = new Audio(objectUrl);
+    audio.onended = () => { URL.revokeObjectURL(objectUrl); setMicUI('standby'); if (!isMuted) scheduleMic(500); };
+    audio.onerror = () => { URL.revokeObjectURL(objectUrl); if (!isMuted) scheduleMic(500); };
+    await audio.play();
+  } catch (err) {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    fallbackSpeak(text);
+  }
+};
+
+const fallbackSpeak = (text) => {
+  if ('speechSynthesis' in window) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-GB'; utter.rate = 1.1;
+    utter.onend = () => { setMicUI('standby'); if (!isMuted) scheduleMic(400); };
+    window.speechSynthesis.speak(utter);
+  } else { if (!isMuted) scheduleMic(500); }
+};
+
+// Map
+const openMap = (query) => {
+  mapFrame.src = 'https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed';
+  mapOverlay.classList.add('active');
+};
+closeMap.addEventListener('click', () => { mapOverlay.classList.remove('active'); mapFrame.src = ''; });
+
+// Stats update
+const updateStats = async () => {
+  try {
+    const res = await fetch('/system_stats');
+    const d = await res.json();
+    const cpu = Math.round(d.cpu), ram = Math.round(d.ram);
+    netCpu.textContent = cpu + '%';
+    netRam.textContent = ram + '%';
+    diskPct.textContent = cpu + '%';
+    batteryLabel.textContent = ram + '% RAM';
+    // Update bars
+    const barSegs = barsEl.children;
+    const barHeights = [
+      Math.min(cpu, 60), Math.min(ram, 60),
+      Math.min(cpu * 0.7, 50), Math.min(ram * 0.7, 50),
+      Math.min(cpu * 0.5, 40), Math.min(ram * 0.5, 40),
+      Math.min(cpu * 0.3, 30), Math.min(ram * 0.3, 30),
+      Math.min(cpu * 0.2, 25), Math.min(ram * 0.2, 20),
+    ];
+    for (let i = 0; i < barSegs.length && i < barHeights.length; i++) {
+      barSegs[i].style.height = barHeights[i] + 'px';
+    }
+    document.getElementById('dot1').style.background = cpu > 70 ? '#ef4444' : '#22c55e';
+    document.getElementById('dot1').style.boxShadow = cpu > 70 ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 6px var(--cyan)';
+  } catch(e) {}
+};
+updateStats();
+setInterval(updateStats, 2500);
+
+// Boot
+const boot = async () => {
+  addNote('System', 'Booting JARVIS systems...');
+  setMicUI('muted');
+  await new Promise(r => setTimeout(r, 400));
+  const welcome = 'Systems online, sir. Click the mic or type a command to begin.';
+  addNote('JARVIS', welcome, 'lj');
+  statusBar.textContent = welcome;
+  if ('speechSynthesis' in window) {
+    const u = new SpeechSynthesisUtterance(welcome);
+    u.lang = 'en-GB'; u.rate = 1.1;
+    window.speechSynthesis.speak(u);
+  }
+};
+
+// Build bars initially
+for (let i = 0; i < 10; i++) {
+  const d = document.createElement('div');
+  d.className = 'bar-seg';
+  d.style.height = '20px';
+  barsEl.appendChild(d);
+}
+
+// Init bars
+for (let i = 0; i < 10; i++) {
+  barsEl.children[i].style.height = (15 + Math.random() * 30) + 'px';
+}
+
+// Controls
+micToggle.addEventListener('click', toggleMic);
+speakBtn.addEventListener('click', toggleMic);
+document.getElementById('jarvis-ring').addEventListener('click', toggleMic);
+
+// Red-dot play button in topbar also toggles mic
+document.querySelector('.top-icon').addEventListener('click', toggleMic);
+
+boot();
+</script>
+</body>
+</html>

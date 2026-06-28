@@ -1,37 +1,28 @@
 import sqlite3
 
-DB_NAME = "jarvis.db"
+DB_PATH = "jarvis.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS memories (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              content TEXT
-              
-    )
-    """)
-
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS memory 
+                      (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT)''')
     conn.commit()
     conn.close()
 
-
-def add_memory(text):
-    conn = sqlite3.connect(DB_NAME) 
-    c = conn.cursor()
-
-    c.execute("INSERT INTO memories (content) VALUES (?)", (text,))
+def save_message(role, content):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO memory (role, content) VALUES (?, ?)", (role, content))
     conn.commit()
-    conn.close
-
-def get_memories():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-
-    c.execute("SELECT content FROM memories ORDER BY id DESC")
-    rows = c.fetchall()
-
     conn.close()
-    return [r[0] for r in rows]   
+
+def get_history(limit=10):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT role, content FROM memory ORDER BY id DESC LIMIT ?", (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"role": r, "content": c} for r, c in reversed(rows)]
+
+init_db()
