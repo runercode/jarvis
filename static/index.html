@@ -1487,6 +1487,7 @@ const speakText = async (text) => {
     const blob = await res.blob();
     objectUrl = URL.createObjectURL(blob);
     const audio = new Audio(objectUrl);
+    audio.playbackRate = 1.1;
     audio.onended = () => { URL.revokeObjectURL(objectUrl); setMicUI('standby'); if (!isMuted) scheduleMic(500); };
     audio.onerror = () => { URL.revokeObjectURL(objectUrl); if (!isMuted) scheduleMic(500); };
     await audio.play();

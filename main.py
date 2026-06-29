@@ -60,7 +60,8 @@ async def tts(text: str):
             "model_id": "eleven_turbo_v2",
             "voice_settings": {
                 "stability": 0.4,
-                "similarity_boost": 0.7
+                "similarity_boost": 0.7,
+                "speed": 1.1
             }
         }
         headers = {
@@ -68,13 +69,16 @@ async def tts(text: str):
             "Content-Type": "application/json"
         }
 
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, stream=True)
         response.raise_for_status()
 
-        buffer = io.BytesIO(response.content)
-        buffer.seek(0)
-        print(f"<-- ElevenLabs British audio generated for text length {len(text)}")
-        return StreamingResponse(buffer, media_type="audio/mpeg")
+        def generate():
+            for chunk in response.iter_content(chunk_size=4096):
+                if chunk:
+                    yield chunk
+
+        print(f"<-- ElevenLabs British audio streaming for text length {len(text)}")
+        return StreamingResponse(generate(), media_type="audio/mpeg")
 
     except requests.RequestException as e:
         print(f"!!! [ELEVENLABS ERROR]: {e}")
