@@ -764,6 +764,84 @@
   .map-input-row button:hover { background:var(--cyan-mid); color:#fff; }
   .map-frame-wrap { flex:1; border:1px solid var(--border); }
   .map-frame-wrap iframe { width:100%; height:100%; border:0; }
+
+  /* ─── MIND MAP ─── */
+  #mind-map-wrap {
+    width: 100%; flex: 1; min-height: 0;
+    position: relative; overflow: hidden;
+    border-top: 1px solid var(--border);
+    background: rgba(0,8,18,0.5);
+    cursor: grab;
+    display: none;
+  }
+  #mind-map-wrap.active { display: block; }
+  #mind-map-wrap:active { cursor: grabbing; }
+  #mind-map-wrap canvas { display: block; }
+  .mm-search-bar {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 4px; z-index: 10;
+  }
+  .mm-search-bar input {
+    width: 280px;
+    background: rgba(0,15,30,0.95);
+    border: 1px solid var(--cyan-dim);
+    color: var(--text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; padding: 5px 10px;
+    outline: none;
+  }
+  .mm-search-bar input:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,200,240,0.2); }
+  .mm-search-bar button {
+    background: rgba(0,30,50,0.9);
+    border: 1px solid var(--cyan-dim);
+    color: var(--cyan);
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; letter-spacing: 1px;
+    transition: 0.15s;
+  }
+  .mm-search-bar button:hover { background: var(--cyan-mid); color: #fff; }
+  .mm-loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    color: var(--cyan-dim); font-family: 'Orbitron',monospace;
+    font-size: 11px; letter-spacing: 2px;
+    pointer-events: none;
+  }
+  .mm-node-detail {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    max-width: 90%; padding: 6px 12px;
+    background: rgba(0,15,30,0.95);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-size: 10px; font-family: 'Share Tech Mono', monospace;
+    pointer-events: none;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* Research overlay */
+  .research-area { display:flex; flex-direction:column; height:100%; gap:8px; }
+  .research-input-row { display:flex; gap:6px; flex-shrink:0; }
+  .research-input-row input {
+    flex:1; background:rgba(0,15,30,0.9);
+    border:1px solid var(--cyan-dim); color:var(--text-bright);
+    font-family:'Share Tech Mono',monospace; font-size:12px; padding:8px 10px; outline:none;
+  }
+  .research-input-row input:focus { border-color:var(--cyan); }
+  .research-input-row button {
+    background:rgba(0,30,50,0.9); border:1px solid var(--cyan-dim); color:var(--cyan);
+    padding:8px 14px; cursor:pointer; font-family:'Share Tech Mono',monospace;
+    font-size:11px; letter-spacing:1px; transition:0.15s;
+  }
+  .research-input-row button:hover { background:var(--cyan-mid); color:#fff; }
+  .research-canvas-wrap {
+    flex:1; border:1px solid var(--border); position:relative; overflow:hidden;
+    background:rgba(0,8,18,0.5); cursor:grab;
+  }
+  .research-canvas-wrap:active { cursor:grabbing; }
+  .research-canvas-wrap canvas { display:block; }
 </style>
 </head>
 <body>
@@ -794,6 +872,9 @@
     </div>
     <div class="tab-btn" data-overlay="terminal">
       <div class="top-icon" style="width:16px;height:16px;font-size:7px;color:#44ff88;border-color:#44ff88;">⬛</div> TERMINAL
+    </div>
+    <div class="tab-btn" data-overlay="research">
+      <div class="top-icon" style="width:16px;height:16px;font-size:7px;color:#f0c030;border-color:#f0c030;">🔬</div> RESEARCH
     </div>
 
     <div id="top-controls">
@@ -831,6 +912,9 @@
     <div class="menu-item" data-overlay="terminal">
       <div class="menu-icon" style="color:#44ff88;border-color:#44ff88;">⬛</div> TERMINAL
     </div>
+    <div class="menu-item" data-overlay="research">
+      <div class="menu-icon" style="color:var(--gold);border-color:var(--gold);">🔬</div> RESEARCH
+    </div>
 
     <div class="menu-track-arrow dn">▼</div>
   </div>
@@ -847,6 +931,15 @@
     <div id="battery-label" style="left:calc(50% + 20px);">0% RAM</div>
     <div id="holo-bottom">
       <canvas id="holoCanvas" width="340" height="200"></canvas>
+    </div>
+    <div id="mind-map-wrap">
+      <div class="mm-search-bar">
+        <input type="text" id="mm-input" placeholder="Research a topic..." autocomplete="off">
+        <button id="mm-go">SEARCH</button>
+      </div>
+      <div class="mm-loading" id="mm-loading" style="display:none;">RESEARCHING...</div>
+      <canvas id="mind-map-canvas"></canvas>
+      <div class="mm-node-detail" id="mm-detail"></div>
     </div>
   </div>
 
@@ -1320,7 +1413,7 @@ const showTerminal = () => {
 };
 
 // ─── MENU / TAB BUTTONS → OPEN OVERLAYS ───
-const overlayMap = { system: showSystem, chat: showFullChat, map: showMapModal, terminal: showTerminal };
+const overlayMap = { system: showSystem, chat: showFullChat, map: showMapModal, terminal: showTerminal, research: showResearch };
 document.querySelectorAll('.menu-item, .tab-btn').forEach(el => {
   el.addEventListener('click', () => {
     const target = el.dataset.overlay;
@@ -1331,6 +1424,304 @@ document.querySelectorAll('.menu-item, .tab-btn').forEach(el => {
     }
   });
 });
+
+// ════════════════════════════════════════════════
+// ─── MIND MAP ENGINE ───
+// ════════════════════════════════════════════════
+let mindMapData = null;
+let mindMapNodes = [];
+let mmPanX = 0, mmPanY = 0, mmScale = 1;
+let mmDragging = false, mmDragX = 0, mmDragY = 0;
+let mmExpanded = {};
+let mmSelectedId = null;
+
+function initMindMap(containerId, canvasId, detailId) {
+  const wrap = document.getElementById(containerId);
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const detail = document.getElementById(detailId);
+  let wrapRef = wrap, canvasRef = canvas, ctxRef = ctx, detailRef = detail;
+
+  function resize() { canvasRef.width = wrapRef.clientWidth; canvasRef.height = wrapRef.clientHeight; draw(); }
+  window.addEventListener('resize', () => { if (wrapRef.classList.contains('active')) resize(); });
+
+  function draw() {
+    const W = canvasRef.width, H = canvasRef.height;
+    ctxRef.clearRect(0, 0, W, H);
+    if (!mindMapData) return;
+
+    const nodes = buildNodeList();
+    const layout = computeLayout(nodes, W, H);
+
+    ctxRef.save();
+    ctxRef.translate(mmPanX, mmPanY);
+    ctxRef.scale(mmScale, mmScale);
+
+    // Draw edges
+    layout.forEach(n => {
+      if (n.parentId && mmExpanded[n.parentId] !== false) {
+        const p = layout.find(x => x.id === n.parentId);
+        if (p) {
+          ctxRef.strokeStyle = n.depth === 0 ? 'rgba(0,200,240,0.5)' : 'rgba(0,150,200,0.25)';
+          ctxRef.lineWidth = n.depth === 0 ? 2 : 1;
+          ctxRef.beginPath();
+          ctxRef.moveTo(p.x, p.y);
+          ctxRef.lineTo(n.x, n.y);
+          ctxRef.stroke();
+        }
+      }
+    });
+
+    // Draw nodes
+    layout.forEach(n => {
+      const isCat = n.depth === 0;
+      const isSelected = n.id === mmSelectedId;
+      const r = isCat ? 22 : 12;
+      const hasChildren = mindMapData.nodes.some(c => c.parent === n.id);
+
+      // Glow
+      if (isSelected) {
+        ctxRef.shadowBlur = 18;
+        ctxRef.shadowColor = 'rgba(0,220,255,0.7)';
+      }
+
+      // Circle
+      ctxRef.fillStyle = isCat
+        ? (isSelected ? 'rgba(0,40,70,0.95)' : 'rgba(0,20,45,0.9)')
+        : (isSelected ? 'rgba(0,30,60,0.9)' : 'rgba(0,15,35,0.85)');
+      ctxRef.strokeStyle = isCat
+        ? (isSelected ? '#00e0ff' : 'rgba(0,200,240,0.6)')
+        : (isSelected ? 'rgba(0,220,255,0.8)' : 'rgba(0,180,220,0.4)');
+      ctxRef.lineWidth = isSelected ? 2.5 : 1.5;
+      ctxRef.beginPath();
+      ctxRef.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctxRef.fill();
+      ctxRef.stroke();
+      ctxRef.shadowBlur = 0;
+
+      // Expand indicator
+      if (hasChildren && isCat) {
+        const collapsed = mmExpanded[n.id] === false;
+        ctxRef.fillStyle = '#00d4ff';
+        ctxRef.font = 'bold 10px "Share Tech Mono"';
+        ctxRef.textAlign = 'center';
+        ctxRef.fillText(collapsed ? '+' : '−', n.x, n.y + 3);
+      }
+
+      // Label
+      const label = n.title.length > 28 ? n.title.slice(0, 26) + '…' : n.title;
+      ctxRef.fillStyle = isCat ? '#d0f4ff' : '#a0e8f8';
+      ctxRef.font = (isCat ? 'bold ' : '') + '10px "Share Tech Mono"';
+      ctxRef.textAlign = 'center';
+      ctxRef.fillText(label, n.x, n.y - r - 6);
+    });
+
+    ctxRef.restore();
+  }
+
+  function buildNodeList() {
+    const visible = [];
+    const walk = (parentId, depth) => {
+      const children = mindMapData.nodes.filter(n => n.parent === parentId);
+      children.forEach(n => {
+        visible.push({ ...n, depth });
+        const expandKey = parentId || n.id;
+        if (mmExpanded[expandKey] !== false) {
+          walk(n.id, depth + 1);
+        }
+      });
+    };
+    walk(null, 0);
+    return visible;
+  }
+
+  function computeLayout(nodes, W, H) {
+    if (!nodes.length) return [];
+    const cats = nodes.filter(n => n.depth === 0);
+    const catW = (W / mmScale) * 0.85;
+    const spacing = catW / (cats.length + 1);
+    const startX = ((W / mmScale) - catW) / 2 + spacing;
+    const result = [];
+
+    cats.forEach((cat, i) => {
+      const cx = startX + i * spacing;
+      const cy = (H / mmScale) * 0.2;
+      result.push({ ...cat, x: cx, y: cy, parentId: null });
+
+      const children = nodes.filter(n => n.parent === cat.id && n.depth === 1);
+      const kidSpacing = 70;
+      const totalW = (children.length - 1) * kidSpacing;
+      children.forEach((kid, j) => {
+        result.push({
+          ...kid,
+          x: cx + (j - (children.length - 1) / 2) * kidSpacing,
+          y: cy + 90,
+          parentId: cat.id
+        });
+      });
+    });
+
+    return result;
+  }
+
+  function getClickNode(mx, my) {
+    const layout = computeLayout(buildNodeList(), canvasRef.width, canvasRef.height);
+    const wx = (mx - mmPanX) / mmScale;
+    const wy = (my - mmPanY) / mmScale;
+    for (let i = layout.length - 1; i >= 0; i--) {
+      const n = layout[i];
+      const r = n.depth === 0 ? 22 : 12;
+      const dx = wx - n.x, dy = wy - n.y;
+      if (Math.sqrt(dx * dx + dy * dy) < r + 6) return n;
+    }
+    return null;
+  }
+
+  canvasRef.addEventListener('click', (e) => {
+    const rect = canvasRef.getBoundingClientRect();
+    const node = getClickNode(e.clientX - rect.left, e.clientY - rect.top);
+    if (!node) {
+      mmSelectedId = null;
+      detailRef.textContent = '';
+      draw();
+      return;
+    }
+    if (node.depth === 0) {
+      const key = node.id;
+      if (mmExpanded[key] === false) mmExpanded[key] = true;
+      else if (mmExpanded[key] === true) mmExpanded[key] = false;
+      else mmExpanded[key] = false; // first click = collapse
+    }
+    mmSelectedId = node.id;
+    detailRef.textContent = node.title;
+    draw();
+  });
+
+  canvasRef.addEventListener('mousemove', (e) => {
+    const rect = canvasRef.getBoundingClientRect();
+    const node = getClickNode(e.clientX - rect.left, e.clientY - rect.top);
+    canvasRef.style.cursor = node ? 'pointer' : mmDragging ? 'grabbing' : 'grab';
+  });
+
+  wrapRef.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    mmDragging = true;
+    mmDragX = e.clientX - mmPanX;
+    mmDragY = e.clientY - mmPanY;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!mmDragging) return;
+    mmPanX = e.clientX - mmDragX;
+    mmPanY = e.clientY - mmDragY;
+    draw();
+  });
+
+  window.addEventListener('mouseup', () => { mmDragging = false; });
+
+  wrapRef.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvasRef.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+    const newScale = Math.min(3, Math.max(0.3, mmScale * factor));
+    mmPanX = mx - (mx - mmPanX) * (newScale / mmScale);
+    mmPanY = my - (my - mmPanY) * (newScale / mmScale);
+    mmScale = newScale;
+    draw();
+  });
+
+  return {
+    resize,
+    draw,
+    load(data) {
+      mindMapData = data;
+      mmExpanded = {};
+      mmSelectedId = null;
+      mmPanX = 0;
+      mmPanY = 30;
+      mmScale = 0.85;
+      resize();
+    }
+  };
+}
+
+// ════════════════════════════════════════════════
+// ─── RESEARCH ───
+// ════════════════════════════════════════════════
+let centerMindMap = null;
+
+const showResearch = () => {
+  const html = `
+    <div class="research-area">
+      <div class="research-input-row">
+        <input type="text" id="ro-input" placeholder="Research any topic..." autocomplete="off">
+        <button id="ro-go">RESEARCH</button>
+      </div>
+      <div class="research-canvas-wrap" id="ro-wrap">
+        <canvas id="ro-canvas"></canvas>
+        <div class="mm-loading" id="ro-loading" style="display:none;">RESEARCHING...</div>
+        <div class="mm-node-detail" id="ro-detail"></div>
+      </div>
+    </div>`;
+  openOverlay('◈ RESEARCH', html);
+  const rm = initMindMap('ro-wrap', 'ro-canvas', 'ro-detail');
+  const inp = document.getElementById('ro-input');
+  const btn = document.getElementById('ro-go');
+  const loading = document.getElementById('ro-loading');
+  const doResearch = async () => {
+    const q = inp.value.trim();
+    if (!q) return;
+    inp.value = '';
+    loading.style.display = 'block';
+    try {
+      const res = await fetch('/research', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: q })
+      });
+      const data = await res.json();
+      loading.style.display = 'none';
+      rm.load(data);
+      addNote('Research', q, 'lj');
+      addNote('JARVIS', data.summary || 'Research complete.', 'lj');
+      // Also update center mind map
+      if (centerMindMap) {
+        centerMindMap.load(data);
+        document.getElementById('mind-map-wrap').classList.add('active');
+      }
+      setMicUI('standby');
+    } catch (e) {
+      loading.style.display = 'none';
+      addNote('Error', 'Research failed: ' + e.message, 'le');
+    }
+  };
+  btn.addEventListener('click', doResearch);
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') doResearch(); });
+  setTimeout(() => inp.focus(), 100);
+};
+
+const triggerResearch = async (topic) => {
+  const mmInput = document.getElementById('mm-input');
+  const mmLoading = document.getElementById('mm-loading');
+  const wrap = document.getElementById('mind-map-wrap');
+  mmInput.value = topic;
+  mmLoading.style.display = 'block';
+  wrap.classList.add('active');
+  try {
+    const res = await fetch('/research', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic })
+    });
+    const data = await res.json();
+    mmLoading.style.display = 'none';
+    if (centerMindMap) centerMindMap.load(data);
+    addNote('JARVIS', data.summary || 'Research complete, sir.', 'lj');
+    setMicUI('standby');
+  } catch (e) {
+    mmLoading.style.display = 'none';
+    addNote('Error', 'Research failed, sir.', 'le');
+  }
+};
 
 // ════════════════════════════════════════════════
 // ─── JARVIS INTEGRATION ───
@@ -1452,6 +1843,16 @@ const toggleMic = () => {
 // Chat
 const sendCommand = async (message) => {
   try {
+    // Auto-detect research requests
+    const researchRx = /\b(research|look up|find (about|info|information)|learn about|tell me about|what (do you know|can you tell me) about)\b/i;
+    if (researchRx.test(message)) {
+      const topic = message.replace(/^(hey\s+)?jarvis[,\s]*/i, '').replace(/^(please\s+)?(research|look up|find about|find info|find information|learn about|tell me about|what do you know about|what can you tell me about)\s+/i, '').trim();
+      if (topic) {
+        triggerResearch(topic);
+        return;
+      }
+    }
+
     const res = await fetch('/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message })
@@ -1569,6 +1970,16 @@ for (let i = 0; i < 10; i++) {
 for (let i = 0; i < 10; i++) {
   barsEl.children[i].style.height = (15 + Math.random() * 30) + 'px';
 }
+
+// Init center mind map
+centerMindMap = initMindMap('mind-map-wrap', 'mind-map-canvas', 'mm-detail');
+document.getElementById('mm-go').addEventListener('click', () => {
+  const q = document.getElementById('mm-input').value.trim();
+  if (q) triggerResearch(q);
+});
+document.getElementById('mm-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') triggerResearch(document.getElementById('mm-input').value.trim());
+});
 
 // Controls
 micToggle.addEventListener('click', toggleMic);

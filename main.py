@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from ai import ask_jarvis
+from ai import ask_jarvis, research_jarvis
 from database import save_message, get_history
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -18,6 +18,9 @@ app = FastAPI()
 
 class ChatRequest(BaseModel):
     message: str
+
+class ResearchRequest(BaseModel):
+    topic: str
 
 @app.get("/system_stats")
 async def get_stats():
@@ -97,6 +100,17 @@ async def tts(text: str):
     except Exception as err:
         print(f"!!! [TTS ERROR]: {err}")
         raise HTTPException(status_code=500, detail=f"TTS Error: {err}")
+
+@app.post("/research")
+async def research(request: ResearchRequest):
+    print(f"\n>>> [RESEARCH]: {request.topic}")
+    try:
+        data = research_jarvis(request.topic)
+        print(f"<<< [RESEARCH] returned {len(data.get('nodes',[]))} nodes")
+        return data
+    except Exception as e:
+        print(f"!!! [RESEARCH ERROR]: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Research Error: {str(e)}")
 
 # Mount static files
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
