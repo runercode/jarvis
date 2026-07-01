@@ -5,6 +5,7 @@ Unified storage layer for JARVIS.
 - SentenceTransformers: local embedding generation (all-MiniLM-L6-v2)
 """
 
+import os
 import sqlite3
 import logging
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Optional
 
 import bcrypt
 import chromadb
-from chromadb.api.types import EmbeddingFunction
+from chromadb.api.types import EmbeddingFunction, Documents, Embeddings
 from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger("jarvis.storage")
@@ -21,6 +22,9 @@ logger = logging.getLogger("jarvis.storage")
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = str(BASE_DIR / "jarvis.db")
 CHROMA_PATH = str(BASE_DIR / "chroma_data")
+
+# Crush parallelism to save RAM on constrained hosts (Render free tier = 512 MB)
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 # ---------------------------------------------------------------------------
 # Lazy singletons (loaded on first use, not on import)
@@ -32,13 +36,23 @@ _message_collection = None
 
 
 def _get_model() -> SentenceTransformer:
-    """Load the embedding model once.  ~80 MB, fast on CPU."""
+    """Load the embedding model once.  ~90 MB on disk, ~200 MB in RAM."""
     global _embedding_model
     if _embedding_model is None:
         logger.info("Loading SentenceTransformer model 'all-MiniLM-L6-v2' ...")
         _embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
         logger.info("Embedding model ready (dim=%d)", _embedding_model.get_sentence_embedding_dimension())
     return _embedding_model
+
+
+class _JarvisEmbeddingFn(EmbeddingFunction):
+    """Custom embedding function that reuses our singleton model.
+
+    CRITICAL: without this ChromaDB loads its own copy of
+    all-MiniLM-L6-v2, doubling RAM (~400 MB -> OOM on free tier).
+    """
+    def __call__(self, input: Documents) -> Embeddings:
+        return _get_model().encode(list(input)).tolist()
 
 
 def _get_chroma():
@@ -49,6 +63,7 @@ def _get_chroma():
         _message_collection = _chroma_client.get_or_create_collection(
             name="jarvis_messages",
             metadata={"hnsw:space": "cosine"},
+            embedding_function=_JarvisEmbeddingFn(),  # share model, don't duplicate
         )
     return _chroma_client, _message_collection
 

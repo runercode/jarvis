@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Data — Render starts fresh, no need to ship local DBs
+*.db
+chroma_data/
+.streamlit/
+
+# Git
+.git/
+.gitignore
+
+# Docs (keep them out of the image)
+*.md
+
+# Env
+.env
+
+# IDE
+.vscode/
+.idea/
