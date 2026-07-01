@@ -8,44 +8,110 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from ai import ask_jarvis, research_jarvis
-from database import save_message, get_history
+
+from ai import ask_jarvis, ask_jarvis_stream, research_jarvis
+
+# ── Phase 2: memory & auth ──
+from storage import (
+    create_user,
+    authenticate_user,
+    save_message,
+    get_history,
+    retrieve_memories,
+    search_memories,
+    get_user_message_count,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 app = FastAPI()
 
+
 class ChatRequest(BaseModel):
     message: str
+    user_id: int = 1
 
 class ResearchRequest(BaseModel):
     topic: str
+
+class AuthRequest(BaseModel):
+    username: str
+    password: str
+
+class SearchRequest(BaseModel):
+    query: str
+    user_id: int
+
 
 @app.get("/system_stats")
 async def get_stats():
     return {
         "cpu": psutil.cpu_percent(interval=None),
-        "ram": psutil.virtual_memory().percent
+        "ram": psutil.virtual_memory().percent,
     }
+
+
+# ── Auth ───────────────────────────────────────────────────────────────
+
+@app.post("/auth/register")
+async def register(req: AuthRequest):
+    result = create_user(req.username, req.password)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.post("/auth/login")
+async def login(req: AuthRequest):
+    result = authenticate_user(req.username, req.password)
+    if "error" in result:
+        raise HTTPException(status_code=401, detail=result["error"])
+    return result
+
+
+# ── Chat (memory‑aware) ────────────────────────────────────────────────
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    print(f"\n>>> [USER]: {request.message}")
+    print(f"\n>>> [USER {request.user_id}]: {request.message}")
     try:
-        history = get_history()
-        result = ask_jarvis(request.message, history)
-        
-        save_message("user", request.message)
-        save_message("assistant", result["text"])
-        
-        print(f"<<< [JARVIS]: {result['text']}")
-        if result['location']:
-            print(f"    [!] Triggering Map for: {result['location']}")
-            
-        return result
+        # 1. Retrieve semantically similar past messages
+        memories = retrieve_memories(request.user_id, request.message, top_k=5)
+        if memories:
+            print(f"    [MEMORY] Retrieved {len(memories)} relevant memories")
+
+        # 2. Get recent chat history for context window
+        history = get_history(request.user_id)
+
+        # 3. Persist user message
+        save_message(request.user_id, "user", request.message)
+
+        # 4. Stream the LLM response with memories injected
+        async def generate():
+            full_text = ""
+            location = None
+            for sse_chunk in ask_jarvis_stream(
+                request.message,
+                chat_history=history,
+                user_id=request.user_id,
+                memories=memories,
+            ):
+                yield sse_chunk
+                if '"done": true' in sse_chunk:
+                    import json
+                    data = json.loads(sse_chunk.replace("data: ", "").strip())
+                    full_text = data.get("text", "")
+                    location = data.get("location")
+                    save_message(request.user_id, "assistant", full_text)
+                    print(f"<<< [JARVIS]: {full_text}")
+                    if location:
+                        print(f"    [!] Triggering Map for: {location}")
+
+        return StreamingResponse(generate(), media_type="text/event-stream")
+
     except Exception as e:
-        print(f"!!! [GEMINI ERROR]: {str(e)}")
+        print(f"!!! [DEEPSEEK ERROR]: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI Error: {str(e)}")
 
 @app.get("/tts")
@@ -111,6 +177,25 @@ async def research(request: ResearchRequest):
     except Exception as e:
         print(f"!!! [RESEARCH ERROR]: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Research Error: {str(e)}")
+
+# ── Memory search ──────────────────────────────────────────────────────
+
+@app.post("/search")
+async def search_memory_ep(request: SearchRequest):
+    """Semantically search past conversations."""
+    results = search_memories(request.user_id, request.query, top_k=10)
+    return {
+        "query": request.query,
+        "total_stored": get_user_message_count(request.user_id),
+        "results": results,
+    }
+
+@app.get("/user/{user_id}/stats")
+async def user_stats(user_id: int):
+    return {
+        "user_id": user_id,
+        "total_messages": get_user_message_count(user_id),
+    }
 
 # Mount static files
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

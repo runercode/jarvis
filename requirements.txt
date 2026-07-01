@@ -6,3 +6,7 @@ python-dotenv==1.0.1
 psutil==6.0.0
 requests==2.32.3
 gTTS==2.5.3
+click>=7.1,<8.2
+sentence-transformers>=3.0.0
+chromadb>=0.5.0
+bcrypt>=4.0.0

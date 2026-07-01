@@ -125,6 +125,33 @@
   .mic-btn .mic-dot.thinking { background: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.5); }
   .mic-btn .mic-dot.muted { background: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.3); }
 
+  .user-pill {
+    display:flex; align-items:center; gap:7px;
+    padding:3px 10px 3px 6px;
+    border:1px solid var(--gold);
+    background:rgba(30,20,0,0.5);
+    color:var(--gold);
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px;
+    cursor:pointer;
+    transition:0.15s;
+    white-space:nowrap;
+    border-radius:3px;
+  }
+  .user-pill:hover { background:rgba(60,40,0,0.5); box-shadow:0 0 10px rgba(240,192,48,0.2); }
+  .user-pill .user-avatar {
+    width:18px; height:18px; border-radius:50%;
+    background:rgba(60,40,0,0.8);
+    border:1px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    font-size:8px; flex-shrink:0;
+  }
+  .user-pill .logout-x {
+    font-size:14px; line-height:1; color:#ff8866;
+    margin-left:2px;
+  }
+  .user-pill:hover .logout-x { color:#ff4444; }
+
   @keyframes breathe {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(1.4); }
@@ -566,6 +593,7 @@
     box-shadow:0 0 50px rgba(0,180,220,0.25), inset 0 0 60px rgba(0,20,30,0.5);
     display:flex; flex-direction:column;
   }
+  .modal-window.full { width:min(1300px,96vw); height:92vh; }
   .modal-hdr {
     display:flex; justify-content:space-between; align-items:center;
     padding:8px 16px;
@@ -765,47 +793,15 @@
   .map-frame-wrap { flex:1; border:1px solid var(--border); }
   .map-frame-wrap iframe { width:100%; height:100%; border:0; }
 
-  /* ─── MIND MAP ─── */
-  #mind-map-wrap {
-    width: 100%; flex: 1; min-height: 0;
-    position: relative; overflow: hidden;
-    border-top: 1px solid var(--border);
-    background: rgba(0,8,18,0.5);
-    cursor: grab;
-    display: none;
-  }
-  #mind-map-wrap.active { display: block; }
-  #mind-map-wrap:active { cursor: grabbing; }
-  #mind-map-wrap canvas { display: block; }
-  .mm-search-bar {
-    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 4px; z-index: 10;
-  }
-  .mm-search-bar input {
-    width: 280px;
-    background: rgba(0,15,30,0.95);
-    border: 1px solid var(--cyan-dim);
-    color: var(--text-bright);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px; padding: 5px 10px;
-    outline: none;
-  }
-  .mm-search-bar input:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,200,240,0.2); }
-  .mm-search-bar button {
-    background: rgba(0,30,50,0.9);
-    border: 1px solid var(--cyan-dim);
-    color: var(--cyan);
-    padding: 5px 12px;
-    cursor: pointer;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px; letter-spacing: 1px;
-    transition: 0.15s;
-  }
-  .mm-search-bar button:hover { background: var(--cyan-mid); color: #fff; }
+  /* ─── MIND MAP (center) — removed, see research overlay ─── */
+
+  /* Research overlay */
+  .research-area { display:flex; flex-direction:column; height:100%; gap:8px; }
+  .research-input-row { display:flex; gap:6px; flex-shrink:0; }
   .mm-loading {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-    color: var(--cyan-dim); font-family: 'Orbitron',monospace;
-    font-size: 11px; letter-spacing: 2px;
+    color: var(--cyan); font-family: 'Orbitron',monospace;
+    font-size: 12px; letter-spacing: 3px;
     pointer-events: none;
   }
   .mm-node-detail {
@@ -820,10 +816,6 @@
     white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }
-
-  /* Research overlay */
-  .research-area { display:flex; flex-direction:column; height:100%; gap:8px; }
-  .research-input-row { display:flex; gap:6px; flex-shrink:0; }
   .research-input-row input {
     flex:1; background:rgba(0,15,30,0.9);
     border:1px solid var(--cyan-dim); color:var(--text-bright);
@@ -842,9 +834,78 @@
   }
   .research-canvas-wrap:active { cursor:grabbing; }
   .research-canvas-wrap canvas { display:block; }
+
+  /* ─── LOGIN OVERLAY ─── */
+  .login-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    backdrop-filter:blur(6px);
+    display:flex; align-items:center; justify-content:center; z-index:200;
+  }
+  .login-overlay.hidden { display:none; }
+  .login-card {
+    width:320px;
+    border:2px solid var(--cyan);
+    background:var(--dark);
+    border-radius:8px; overflow:hidden;
+    box-shadow:0 0 40px rgba(0,180,220,0.3);
+  }
+  .login-tabs {
+    display:flex;
+    border-bottom:1px solid var(--border);
+  }
+  .login-tab {
+    flex:1; padding:10px 0; text-align:center;
+    font-family:'Orbitron',monospace; font-size:11px; letter-spacing:2px;
+    color:var(--cyan-dim); cursor:pointer;
+    background:rgba(0,15,30,0.6);
+    border-bottom:2px solid transparent;
+    transition:0.15s;
+  }
+  .login-tab.active { color:var(--cyan); border-bottom-color:var(--cyan); background:rgba(0,25,45,0.8); }
+  .login-body { padding:20px 24px 24px; display:flex; flex-direction:column; gap:12px; }
+  .login-body input {
+    background:rgba(0,15,30,0.9);
+    border:1px solid var(--cyan-dim);
+    color:var(--text-bright);
+    font-family:'Share Tech Mono',monospace;
+    font-size:12px; padding:10px 12px;
+    outline:none;
+  }
+  .login-body input:focus { border-color:var(--cyan); }
+  .login-body button {
+    background:rgba(0,30,50,0.9);
+    border:1px solid var(--cyan);
+    color:var(--cyan);
+    padding:10px;
+    cursor:pointer;
+    font-family:'Orbitron',monospace;
+    font-size:12px; letter-spacing:2px;
+    transition:0.15s;
+  }
+  .login-body button:hover { background:var(--cyan-mid); color:#fff; box-shadow:0 0 15px rgba(0,200,240,0.3); }
+  .login-error {
+    font-size:10px; color:#ff6666; text-align:center;
+    min-height:14px; font-family:'Share Tech Mono',monospace;
+  }
 </style>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-tabs">
+      <div class="login-tab active" data-tab="login">LOG IN</div>
+      <div class="login-tab" data-tab="register">REGISTER</div>
+    </div>
+    <div class="login-body" id="login-body">
+      <input type="text" id="login-user" placeholder="username" autocomplete="off">
+      <input type="password" id="login-pass" placeholder="password">
+      <button id="login-go">AUTHENTICATE</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
+</div>
 
 <div id="capture-label">Capture_Th...</div>
 <div id="side-text">BRUCE &nbsp; CONTOS &nbsp; CONSTRUCT</div>
@@ -868,7 +929,7 @@
       <div class="top-icon" style="width:16px;height:16px;font-size:7px;color:#a78bfa;border-color:#a78bfa;">💬</div> CHAT
     </div>
     <div class="tab-btn" data-overlay="map">
-      <div class="top-icon gold" style="width:16px;height:16px;font-size:7px;">🌍</div> MAP
+      <div class="top-icon gold" style="width:16px;height:16px;font-size:7px;">🛒</div> AMAZON
     </div>
     <div class="tab-btn" data-overlay="terminal">
       <div class="top-icon" style="width:16px;height:16px;font-size:7px;color:#44ff88;border-color:#44ff88;">⬛</div> TERMINAL
@@ -878,6 +939,11 @@
     </div>
 
     <div id="top-controls">
+      <div class="user-pill hidden" id="user-pill" title="Click to log out">
+        <div class="user-avatar">👤</div>
+        <span id="user-pill-name">user</span>
+        <span class="logout-x">✕</span>
+      </div>
       <div class="mic-btn" id="mic-toggle">
         <span class="mic-dot" id="top-mic-dot"></span>
         <span id="top-mic-label">MIC OFF</span>
@@ -907,7 +973,7 @@
       <div class="menu-icon" style="color:#a78bfa;border-color:#a78bfa;">💬</div> CHAT
     </div>
     <div class="menu-item" data-overlay="map">
-      <div class="menu-icon gold" style="color:var(--gold);border-color:var(--gold);">🌍</div> MAP
+      <div class="menu-icon gold" style="color:var(--gold);border-color:var(--gold);">🛒</div> AMAZON
     </div>
     <div class="menu-item" data-overlay="terminal">
       <div class="menu-icon" style="color:#44ff88;border-color:#44ff88;">⬛</div> TERMINAL
@@ -931,15 +997,6 @@
     <div id="battery-label" style="left:calc(50% + 20px);">0% RAM</div>
     <div id="holo-bottom">
       <canvas id="holoCanvas" width="340" height="200"></canvas>
-    </div>
-    <div id="mind-map-wrap">
-      <div class="mm-search-bar">
-        <input type="text" id="mm-input" placeholder="Research a topic..." autocomplete="off">
-        <button id="mm-go">SEARCH</button>
-      </div>
-      <div class="mm-loading" id="mm-loading" style="display:none;">RESEARCHING...</div>
-      <canvas id="mind-map-canvas"></canvas>
-      <div class="mm-node-detail" id="mm-detail"></div>
     </div>
   </div>
 
@@ -992,10 +1049,10 @@
 
 </div>
 
-<!-- MAP OVERLAY (auto-triggered by [LOCATION] in chat) -->
+<!-- AMAZON OVERLAY (auto-triggered by [AMAZON: ...] or shopping queries in chat) -->
 <div class="overlay" id="map-overlay">
   <div class="map-modal">
-    <div class="map-hdr"><span>📍 LOCATION</span><button id="close-map">CLOSE</button></div>
+    <div class="map-hdr"><span>🛒 AMAZON</span><button id="close-map">CLOSE</button></div>
     <iframe id="map-frame" loading="lazy"></iframe>
   </div>
 </div>
@@ -1014,6 +1071,110 @@
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════════════
+// ─── AUTH ───
+// ═══════════════════════════════════════════════════════════════════════
+let currentUser = null;  // {id, username}
+
+const loginOverlay = document.getElementById('login-overlay');
+const loginBody = document.getElementById('login-body');
+const loginUser = document.getElementById('login-user');
+const loginPass = document.getElementById('login-pass');
+const loginGo = document.getElementById('login-go');
+const loginError = document.getElementById('login-error');
+
+let authMode = 'login';
+
+document.querySelectorAll('.login-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    authMode = tab.dataset.tab;
+    loginGo.textContent = authMode === 'login' ? 'AUTHENTICATE' : 'REGISTER';
+    loginError.textContent = '';
+  });
+});
+
+loginPass.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleAuth();
+});
+
+loginGo.addEventListener('click', handleAuth);
+
+async function handleAuth() {
+  const username = loginUser.value.trim();
+  const password = loginPass.value;
+  if (!username || !password) {
+    loginError.textContent = 'Fill in both fields.';
+    return;
+  }
+  loginError.textContent = '';
+  loginGo.textContent = '...';
+  loginGo.disabled = true;
+  try {
+    const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+    const res = await fetch(endpoint, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      loginError.textContent = data.detail || 'Auth failed.';
+      loginGo.textContent = authMode === 'login' ? 'AUTHENTICATE' : 'REGISTER';
+      loginGo.disabled = false;
+      return;
+    }
+    currentUser = data;
+    try { localStorage.setItem('jarvis_user', JSON.stringify(data)); } catch(e) {}
+    loginOverlay.classList.add('hidden');
+    showUserPill();
+    statusBar.textContent = `Logged in as ${data.username}. Systems online, sir.`;
+    boot();
+  } catch(e) {
+    loginError.textContent = 'Connection error.';
+    loginGo.textContent = authMode === 'login' ? 'AUTHENTICATE' : 'REGISTER';
+    loginGo.disabled = false;
+  }
+}
+
+function showUserPill() {
+  if (!currentUser) return;
+  const pill = document.getElementById('user-pill');
+  document.getElementById('user-pill-name').textContent = currentUser.username;
+  pill.classList.remove('hidden');
+}
+
+function handleLogout() {
+  currentUser = null;
+  try { localStorage.removeItem('jarvis_user'); } catch(e) {}
+  document.getElementById('user-pill').classList.add('hidden');
+  loginOverlay.classList.remove('hidden');
+  loginUser.value = '';
+  loginPass.value = '';
+  loginError.textContent = '';
+  // Reset mic if it's active
+  if (!isMuted) toggleMic();
+  statusBar.textContent = 'Logged out. Systems idle.';
+}
+
+document.getElementById('user-pill').addEventListener('click', handleLogout);
+
+// Try restore session from localStorage
+(function() {
+  try {
+    const saved = localStorage.getItem('jarvis_user');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      loginOverlay.classList.add('hidden');
+      showUserPill();
+      // verify session still valid
+      fetch(`/user/${currentUser.id}/stats`)
+        .then(r => { if (!r.ok) throw new Error(); })
+        .catch(() => { currentUser = null; document.getElementById('user-pill').classList.add('hidden'); loginOverlay.classList.remove('hidden'); });
+    }
+  } catch(e) { currentUser = null; }
+})();
+
 // ─── CLOCK ───
 function updateClock() {
   const now = new Date();
@@ -1254,6 +1415,9 @@ const sharedClose = document.getElementById('shared-close');
 const openOverlay = (title, html) => {
   sharedTitle.textContent = title;
   sharedBody.innerHTML = html;
+  // Reset full class
+  const modal = sharedOverlay.querySelector('.modal-window');
+  if (modal) modal.classList.remove('full');
   sharedOverlay.classList.add('active');
 };
 const closeOverlay = () => {
@@ -1355,13 +1519,13 @@ const showMapModal = () => {
       </div>
       <div class="map-frame-wrap"><iframe id="map-frame-modal" loading="lazy"></iframe></div>
     </div>`;
-  openOverlay('◈ MAP', html);
+  openOverlay('◈ AMAZON', html);
   const mInp = document.getElementById('map-input');
   const mBtn = document.getElementById('map-go');
   const mFrame = document.getElementById('map-frame-modal');
   const goMap = () => {
     const q = mInp.value.trim();
-    if (q) mFrame.src = 'https://www.google.com/maps?q=' + encodeURIComponent(q) + '&output=embed';
+    if (q) mFrame.src = 'https://www.amazon.com/s?k=' + encodeURIComponent(q);
   };
   mBtn.addEventListener('click', goMap);
   mInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') goMap(); });
@@ -1413,7 +1577,7 @@ const showTerminal = () => {
 };
 
 // ─── MENU / TAB BUTTONS → OPEN OVERLAYS ───
-const overlayMap = { system: showSystem, chat: showFullChat, map: showMapModal, terminal: showTerminal, research: showResearch };
+const overlayMap = { system: showSystem, chat: showFullChat, map: showMapModal, terminal: showTerminal };
 document.querySelectorAll('.menu-item, .tab-btn').forEach(el => {
   el.addEventListener('click', () => {
     const target = el.dataset.overlay;
@@ -1649,9 +1813,9 @@ function initMindMap(containerId, canvasId, detailId) {
 // ════════════════════════════════════════════════
 // ─── RESEARCH ───
 // ════════════════════════════════════════════════
-let centerMindMap = null;
+let researchMindMap = null;
 
-const showResearch = () => {
+const showResearch = (preloadedTopic, preloadedData) => {
   const html = `
     <div class="research-area">
       <div class="research-input-row">
@@ -1665,10 +1829,14 @@ const showResearch = () => {
       </div>
     </div>`;
   openOverlay('◈ RESEARCH', html);
-  const rm = initMindMap('ro-wrap', 'ro-canvas', 'ro-detail');
+  // Make modal full-size for research
+  const modal = document.querySelector('#shared-overlay .modal-window');
+  if (modal) modal.classList.add('full');
+  researchMindMap = initMindMap('ro-wrap', 'ro-canvas', 'ro-detail');
   const inp = document.getElementById('ro-input');
   const btn = document.getElementById('ro-go');
   const loading = document.getElementById('ro-loading');
+
   const doResearch = async () => {
     const q = inp.value.trim();
     if (!q) return;
@@ -1681,47 +1849,61 @@ const showResearch = () => {
       });
       const data = await res.json();
       loading.style.display = 'none';
-      rm.load(data);
+      researchMindMap.load(data);
       addNote('Research', q, 'lj');
       addNote('JARVIS', data.summary || 'Research complete.', 'lj');
-      // Also update center mind map
-      if (centerMindMap) {
-        centerMindMap.load(data);
-        document.getElementById('mind-map-wrap').classList.add('active');
-      }
       setMicUI('standby');
     } catch (e) {
       loading.style.display = 'none';
       addNote('Error', 'Research failed: ' + e.message, 'le');
     }
   };
+
+  // If preloaded data, display immediately
+  if (preloadedData && preloadedTopic) {
+    inp.value = preloadedTopic;
+    setTimeout(() => researchMindMap.load(preloadedData), 200);
+  }
+
   btn.addEventListener('click', doResearch);
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') doResearch(); });
   setTimeout(() => inp.focus(), 100);
 };
 
 const triggerResearch = async (topic) => {
-  const mmInput = document.getElementById('mm-input');
-  const mmLoading = document.getElementById('mm-loading');
-  const wrap = document.getElementById('mind-map-wrap');
-  mmInput.value = topic;
-  mmLoading.style.display = 'block';
-  wrap.classList.add('active');
+  // Show researching note in chat
+  const researchNoteId = addNote('JARVIS', '🔬 Researching: ' + topic + '...', 'lj');
+  const researchNoteEl = document.getElementById(researchNoteId);
   try {
     const res = await fetch('/research', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ topic })
     });
     const data = await res.json();
-    mmLoading.style.display = 'none';
-    if (centerMindMap) centerMindMap.load(data);
-    addNote('JARVIS', data.summary || 'Research complete, sir.', 'lj');
+    // Format full research into chat
+    let lines = ['<b class="lj">🔬 JARVIS</b>  <span style="color:var(--gold);">' + (data.summary || 'Research complete, sir.') + '</span>'];
+    const cats = data.nodes.filter(n => n.depth === 0);
+    for (const c of cats) {
+      lines.push('<br><b style="color:var(--cyan);">▸ ' + c.title + '</b>');
+      const children = data.nodes.filter(n => n.parent === c.id);
+      for (const ch of children) {
+        lines.push('&nbsp;&nbsp;<span style="color:var(--text);">• ' + ch.title + '</span>');
+      }
+    }
+    if (researchNoteEl) {
+      researchNoteEl.innerHTML = lines.join('');
+      notesContent.scrollTop = notesContent.scrollHeight;
+    }
+    // Open full-size research overlay with preloaded data
+    showResearch(topic, data);
     setMicUI('standby');
   } catch (e) {
-    mmLoading.style.display = 'none';
-    addNote('Error', 'Research failed, sir.', 'le');
+    if (researchNoteEl) researchNoteEl.innerHTML = '<b class="le">JARVIS</b> Research failed, sir.';
   }
 };
+
+// Wire up research to the overlay map (must happen after showResearch is defined)
+overlayMap.research = showResearch;
 
 // ════════════════════════════════════════════════
 // ─── JARVIS INTEGRATION ───
@@ -1755,12 +1937,16 @@ let micTimer = null;
 const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 // Add note line
+let _noteSeq = 0;
 const addNote = (prefix, text, cls = '') => {
+  const id = 'note-' + (++_noteSeq);
   const d = document.createElement('div');
+  d.id = id;
   d.className = 'notes-line';
   d.innerHTML = cls ? `<b class="${cls}">${prefix}</b> ${text}` : `<b>${prefix}</b> ${text}`;
   notesContent.appendChild(d);
   notesContent.scrollTop = notesContent.scrollHeight;
+  return id;
 };
 
 const setMicUI = (state) => {
@@ -1843,24 +2029,61 @@ const toggleMic = () => {
 // Chat
 const sendCommand = async (message) => {
   try {
-    // Auto-detect research requests
-    const researchRx = /\b(research|look up|find (about|info|information)|learn about|tell me about|what (do you know|can you tell me) about)\b/i;
-    if (researchRx.test(message)) {
-      const topic = message.replace(/^(hey\s+)?jarvis[,\s]*/i, '').replace(/^(please\s+)?(research|look up|find about|find info|find information|learn about|tell me about|what do you know about|what can you tell me about)\s+/i, '').trim();
-      if (topic) {
-        triggerResearch(topic);
+    // Trigger research on research/search commands anywhere in the message
+    const jarvisPrefix = /^(hey\s+)?jarvis[,\s]*/i;
+    const stripped = message.replace(jarvisPrefix, '').trim();
+    // Simple robust patterns — any research/search verb followed by a topic
+    const patterns = [
+      /(?:do\s+(?:some\s+)?)?research\s+(?:about\s+|on\s+)?(.+)/i,
+      /search\s+(?:for\s+)?(.+)/i,
+      /look\s+up\s+(.+)/i,
+      /look\s+into\s+(.+)/i,
+      /learn\s+about\s+(.+)/i,
+      /tell\s+me\s+about\s+(.+)/i,
+      /find\s+(?:info|information|me)?\s*(?:about|on)?\s+(.+)/i,
+      /show\s+me\s+(?:the\s+)?research\s+(?:about|on)?\s+(.+)/i,
+      /what\s+(?:do\s+you\s+)?know\s+about\s+(.+)/i,
+    ];
+    for (const pat of patterns) {
+      const m = stripped.match(pat);
+      if (m && m[1] && m[1].trim()) {
+        triggerResearch(m[1].trim());
         return;
       }
     }
 
     const res = await fetch('/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({ message, user_id: currentUser ? currentUser.id : 1 })
     });
-    const data = await res.json();
-    addNote('JARVIS', data.text, 'lj');
-    if (data.location) openMap(data.location);
-    await speakText(data.text);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '', buffer = '', noteId = addNote('JARVIS', '', 'lj');
+    const noteEl = document.getElementById(noteId);
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.t) {
+            fullText += data.t;
+            if (noteEl) { noteEl.innerHTML = `<b class="lj">JARVIS</b> ${fullText}`; notesContent.scrollTop = notesContent.scrollHeight; }
+          }
+          if (data.done) {
+            fullText = data.text;
+            if (noteEl) { noteEl.innerHTML = `<b class="lj">JARVIS</b> ${fullText}`; notesContent.scrollTop = notesContent.scrollHeight; }
+            if (data.location) openMap(data.location);
+            await speakText(fullText);
+          }
+        } catch (e) { /* skip */ }
+      }
+    }
   } catch (err) {
     addNote('Error', err.message, 'le');
     if (!isMuted) scheduleMic(600);
@@ -1907,9 +2130,9 @@ const fallbackSpeak = (text) => {
   } else { if (!isMuted) scheduleMic(500); }
 };
 
-// Map
+// Amazon
 const openMap = (query) => {
-  mapFrame.src = 'https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed';
+  mapFrame.src = 'https://www.amazon.com/s?k=' + encodeURIComponent(query);
   mapOverlay.classList.add('active');
 };
 closeMap.addEventListener('click', () => { mapOverlay.classList.remove('active'); mapFrame.src = ''; });
@@ -1970,16 +2193,6 @@ for (let i = 0; i < 10; i++) {
 for (let i = 0; i < 10; i++) {
   barsEl.children[i].style.height = (15 + Math.random() * 30) + 'px';
 }
-
-// Init center mind map
-centerMindMap = initMindMap('mind-map-wrap', 'mind-map-canvas', 'mm-detail');
-document.getElementById('mm-go').addEventListener('click', () => {
-  const q = document.getElementById('mm-input').value.trim();
-  if (q) triggerResearch(q);
-});
-document.getElementById('mm-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') triggerResearch(document.getElementById('mm-input').value.trim());
-});
 
 // Controls
 micToggle.addEventListener('click', toggleMic);

@@ -5,3 +5,4 @@ jarvis.db
 .streamlit/
 .env
 *.db
+chroma_data/
